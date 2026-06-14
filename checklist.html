@@ -321,6 +321,94 @@
       display: block;
     }
 
+    .cl-settings {
+      margin-top: 1.25rem;
+      background: var(--white);
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+    }
+
+    .cl-settings-header {
+      background: var(--green-tint);
+      color: var(--green-dark);
+      padding: 0.85rem 1.25rem;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+
+    .cl-settings-body {
+      padding: 1rem 1.25rem 1.25rem;
+    }
+
+    .cl-setting-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.65rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .cl-setting-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .cl-setting-toggle {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      padding-top: 0.55rem;
+    }
+
+    .cl-setting-toggle input {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: var(--green-dark);
+    }
+
+    .cl-setting-field {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .cl-setting-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--grey);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.35rem;
+    }
+
+    .cl-setting-field input[type="text"] {
+      width: 100%;
+      font-family: inherit;
+      font-size: 0.9rem;
+      padding: 0.45rem 0.6rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      color: var(--dark);
+    }
+
+    .cl-setting-field input[type="text"]:disabled {
+      opacity: 0.45;
+      background: var(--surface);
+    }
+
+    .cl-setting-field input[type="text"]:focus {
+      outline: none;
+      border-color: var(--green-medium);
+    }
+
+    .cl-setting-hint {
+      font-size: 0.85rem;
+      color: var(--grey);
+      line-height: 1.45;
+    }
+
     .cl-section.drag-over .cl-section-head {
       background: var(--purple-tint);
       border-radius: 4px;
@@ -484,10 +572,14 @@
 
     const MAX_SECTIONS = 10;
     const MAX_ITEMS = 20;
-    const COMPLETION_MESSAGE = 'All items complete. You are ready to submit.';
+    const DEFAULT_COMPLETION = 'All items complete. You are ready to submit.';
 
     const DEFAULT_DEMO = {
       title: 'Submission Checklist',
+      showTitle: true,
+      showSectionLabels: true,
+      completionMessage: DEFAULT_COMPLETION,
+      showCompletion: true,
       color: '1f4d2e',
       textColor: 'ffffff',
       sections: [
@@ -572,6 +664,30 @@
       return 'width:' + pct + '%;background:' + textColorHex();
     }
 
+    function parseBool(val, fallback) {
+      if (val === null || val === '') return fallback;
+      return val === 'true' || val === '1';
+    }
+
+    function appendDisplayParams(params) {
+      params.set('showtitle', state.showTitle ? 'true' : 'false');
+      params.set('showlabels', state.showSectionLabels ? 'true' : 'false');
+      params.set('complete', state.completionMessage);
+      params.set('showcomplete', state.showCompletion ? 'true' : 'false');
+    }
+
+    function parseDisplayFields(params) {
+      return {
+        title: params.get('title') || 'Untitled Checklist',
+        showTitle: parseBool(params.get('showtitle'), true),
+        showSectionLabels: parseBool(params.get('showlabels'), true),
+        completionMessage: params.get('complete') || DEFAULT_COMPLETION,
+        showCompletion: parseBool(params.get('showcomplete'), true),
+        color: normalizeColor(params.get('color'), '1f4d2e'),
+        textColor: normalizeColor(params.get('textcolor'), 'ffffff')
+      };
+    }
+
     function getEffectiveBaseUrl() {
       if (!BASE_URL.includes('YOUR_GITHUB_USERNAME')) {
         return BASE_URL.replace(/\/$/, '');
@@ -588,9 +704,7 @@
         return { data: cloneData(DEFAULT_DEMO), editMode: true };
       }
 
-      const title = params.get('title') || 'Untitled Checklist';
-      const color = normalizeColor(params.get('color'), '1f4d2e');
-      const textColor = normalizeColor(params.get('textcolor'), 'ffffff');
+      const display = parseDisplayFields(params);
       const edit = params.get('edit') === 'true';
 
       const sections = [];
@@ -606,11 +720,8 @@
         sections.push({ id: uid('sec'), label, items });
       }
 
-      if (sections.length === 0) {
-        return { data: { title, color, textColor, sections: [] }, editMode: edit };
-      }
-
-      return { data: { title, color, textColor, sections }, editMode: edit };
+      const data = { ...display, sections };
+      return { data, editMode: edit };
     }
 
     function cloneData(data) {
@@ -622,6 +733,7 @@
       params.set('title', state.title);
       params.set('color', state.color);
       params.set('textcolor', state.textColor);
+      appendDisplayParams(params);
       params.set('edit', forView ? 'false' : 'true');
 
       state.sections.forEach((section, si) => {
@@ -640,6 +752,7 @@
       params.set('title', state.title);
       params.set('color', state.color);
       params.set('textcolor', state.textColor);
+      appendDisplayParams(params);
       params.set('edit', 'false');
 
       state.sections.forEach((section, si) => {
@@ -706,37 +819,77 @@
       const { total, checked, pct } = counts();
       const style = headerStyleAttr();
 
-      if (editMode) {
-        return (
-          '<div class="cl-header" id="cl-header" style="' + style + '">' +
-            '<input type="text" class="cl-header-title-input" id="title-input" value="' +
-              escapeHtml(state.title) + '" placeholder="Checklist title" aria-label="Checklist title">' +
-            '<div class="cl-header-controls">' +
-              '<span class="cl-color-label">Background</span>' +
-              '<input type="color" class="cl-color-input" id="color-input" value="' +
-                escapeHtml(headerHex()) + '" aria-label="Header background colour">' +
-              '<span class="cl-color-label">Text</span>' +
-              '<input type="color" class="cl-color-input" id="text-color-input" value="' +
-                escapeHtml(textColorHex()) + '" aria-label="Header text colour">' +
-            '</div>' +
-            '<div class="cl-progress-wrap" style="' + progressWrapStyle() + '">' +
-              '<div class="cl-progress-bar" id="progress-bar" style="' + progressBarStyle(pct) + '"></div>' +
-            '</div>' +
-            '<div class="cl-progress-label" id="progress-label">' +
-              checked + ' of ' + total + ' complete' +
-            '</div>' +
+      const titleHtml = state.showTitle
+        ? (editMode
+          ? '<h1 id="preview-title">' + escapeHtml(state.title) + '</h1>'
+          : '<h1>' + escapeHtml(state.title) + '</h1>')
+        : '';
+
+      const colorControls = editMode
+        ? (
+          '<div class="cl-header-controls">' +
+            '<span class="cl-color-label">Background</span>' +
+            '<input type="color" class="cl-color-input" id="color-input" value="' +
+              escapeHtml(headerHex()) + '" aria-label="Header background colour">' +
+            '<span class="cl-color-label">Text</span>' +
+            '<input type="color" class="cl-color-input" id="text-color-input" value="' +
+              escapeHtml(textColorHex()) + '" aria-label="Header text colour">' +
           '</div>'
-        );
-      }
+        )
+        : '';
 
       return (
         '<div class="cl-header" id="cl-header" style="' + style + '">' +
-          '<h1>' + escapeHtml(state.title) + '</h1>' +
+          titleHtml +
+          colorControls +
           '<div class="cl-progress-wrap" style="' + progressWrapStyle() + '">' +
             '<div class="cl-progress-bar" id="progress-bar" style="' + progressBarStyle(pct) + '"></div>' +
           '</div>' +
           '<div class="cl-progress-label" id="progress-label">' +
             checked + ' of ' + total + ' complete' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function renderDisplaySettings() {
+      return (
+        '<div class="cl-settings">' +
+          '<div class="cl-settings-header">Display options</div>' +
+          '<div class="cl-settings-body">' +
+            '<div class="cl-setting-row">' +
+              '<label class="cl-setting-toggle">' +
+                '<input type="checkbox" id="show-title"' + (state.showTitle ? ' checked' : '') +
+                  ' aria-label="Show header">' +
+              '</label>' +
+              '<div class="cl-setting-field">' +
+                '<span class="cl-setting-label">Header</span>' +
+                '<input type="text" id="title-input" value="' + escapeHtml(state.title) +
+                  '" placeholder="Checklist title"' + (state.showTitle ? '' : ' disabled') + '>' +
+              '</div>' +
+            '</div>' +
+            '<div class="cl-setting-row">' +
+              '<label class="cl-setting-toggle">' +
+                '<input type="checkbox" id="show-section-labels"' + (state.showSectionLabels ? ' checked' : '') +
+                  ' aria-label="Show section labels">' +
+              '</label>' +
+              '<div class="cl-setting-field">' +
+                '<span class="cl-setting-label">Section labels</span>' +
+                '<p class="cl-setting-hint">Uppercase labels above each group. Edit inline on the checklist.</p>' +
+              '</div>' +
+            '</div>' +
+            '<div class="cl-setting-row">' +
+              '<label class="cl-setting-toggle">' +
+                '<input type="checkbox" id="show-complete"' + (state.showCompletion ? ' checked' : '') +
+                  ' aria-label="Show completion message">' +
+              '</label>' +
+              '<div class="cl-setting-field">' +
+                '<span class="cl-setting-label">Ready to submit message</span>' +
+                '<input type="text" id="complete-input" value="' + escapeHtml(state.completionMessage) +
+                  '" placeholder="Shown when all items are checked"' +
+                  (state.showCompletion ? '' : ' disabled') + '>' +
+              '</div>' +
+            '</div>' +
           '</div>' +
         '</div>'
       );
@@ -793,11 +946,13 @@
             '<button type="button" class="cl-btn-icon cl-delete-section" title="Delete section" aria-label="Delete section">×</button>' +
           '</div>'
         )
-        : (
-          '<div class="cl-section-head">' +
-            '<div class="cl-section-label">' + escapeHtml(section.label || 'Untitled section') + '</div>' +
-          '</div>'
-        );
+        : (state.showSectionLabels
+          ? (
+            '<div class="cl-section-head">' +
+              '<div class="cl-section-label">' + escapeHtml(section.label || 'Untitled section') + '</div>' +
+            '</div>'
+          )
+          : '');
 
       return (
         '<div class="cl-section" data-si="' + sectionIndex + '">' +
@@ -823,15 +978,19 @@
         )
         : '';
 
+      const completeVisible = allDone && state.showCompletion;
+
       return (
         '<div class="checklist">' +
           renderHeader() +
           '<div class="cl-body">' +
             sectionsHTML +
             addSectionBtn +
-            '<div class="cl-complete' + (allDone ? ' visible' : '') + '" id="complete-msg">' +
-              escapeHtml(COMPLETION_MESSAGE) +
-            '</div>' +
+            (state.showCompletion
+              ? '<div class="cl-complete' + (completeVisible ? ' visible' : '') + '" id="complete-msg">' +
+                  escapeHtml(state.completionMessage) +
+                '</div>'
+              : '') +
           '</div>' +
         '</div>'
       );
@@ -884,7 +1043,7 @@
       const complete = document.getElementById('complete-msg');
       if (bar) bar.style.width = pct + '%';
       if (label) label.textContent = checked + ' of ' + total + ' complete';
-      if (complete) complete.classList.toggle('visible', allDone);
+      if (complete) complete.classList.toggle('visible', allDone && state.showCompletion);
     }
 
     function updateEmbedPanelLive() {
@@ -965,16 +1124,56 @@
       });
     }
 
-    function attachEditListeners() {
+    function attachDisplaySettingsListeners() {
       const titleInput = document.getElementById('title-input');
       if (titleInput) {
         titleInput.addEventListener('input', () => {
           state.title = titleInput.value;
           document.title = state.title || 'Checklist';
+          const preview = document.getElementById('preview-title');
+          if (preview) preview.textContent = state.title;
           updateEmbedPanelLive();
         });
       }
 
+      const completeInput = document.getElementById('complete-input');
+      if (completeInput) {
+        completeInput.addEventListener('input', () => {
+          state.completionMessage = completeInput.value;
+          const msg = document.getElementById('complete-msg');
+          if (msg) msg.textContent = state.completionMessage;
+          updateEmbedPanelLive();
+        });
+      }
+
+      const showTitle = document.getElementById('show-title');
+      if (showTitle) {
+        showTitle.addEventListener('change', () => {
+          state.showTitle = showTitle.checked;
+          render();
+        });
+      }
+
+      const showSectionLabels = document.getElementById('show-section-labels');
+      if (showSectionLabels) {
+        showSectionLabels.addEventListener('change', () => {
+          state.showSectionLabels = showSectionLabels.checked;
+          updateEmbedPanelLive();
+          render();
+        });
+      }
+
+      const showComplete = document.getElementById('show-complete');
+      if (showComplete) {
+        showComplete.addEventListener('change', () => {
+          state.showCompletion = showComplete.checked;
+          render();
+        });
+      }
+    }
+
+    function attachEditListeners() {
+      attachDisplaySettingsListeners();
       const colorInput = document.getElementById('color-input');
       if (colorInput) {
         colorInput.addEventListener('input', () => {
@@ -1198,7 +1397,7 @@
       document.title = state.title || 'Checklist';
 
       let html = renderChecklistBody();
-      if (editMode) html += renderEmbedPanel();
+      if (editMode) html += renderDisplaySettings() + renderEmbedPanel();
 
       document.getElementById('root').innerHTML = html;
       applyAccentColors();
