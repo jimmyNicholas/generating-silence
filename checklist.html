@@ -65,7 +65,7 @@
       font-family: inherit;
       font-size: 1.5rem;
       font-weight: 700;
-      color: var(--white);
+      color: inherit;
       background: transparent;
       border: none;
       border-bottom: 2px solid transparent;
@@ -78,11 +78,11 @@
     .cl-header-title-input:hover,
     .cl-header-title-input:focus {
       outline: none;
-      border-bottom-color: rgba(255, 255, 255, 0.5);
+      border-bottom-color: color-mix(in srgb, currentColor 50%, transparent);
     }
 
     .cl-header-title-input::placeholder {
-      color: rgba(255, 255, 255, 0.6);
+      opacity: 0.6;
     }
 
     .cl-header-controls {
@@ -102,14 +102,13 @@
       width: 36px;
       height: 28px;
       padding: 0;
-      border: 2px solid rgba(255, 255, 255, 0.5);
+      border: 2px solid color-mix(in srgb, currentColor 50%, transparent);
       border-radius: 4px;
       cursor: pointer;
       background: transparent;
     }
 
     .cl-progress-wrap {
-      background: rgba(255, 255, 255, 0.25);
       border-radius: 999px;
       height: 8px;
       overflow: hidden;
@@ -117,7 +116,6 @@
 
     .cl-progress-bar {
       height: 100%;
-      background: var(--white);
       border-radius: 999px;
       transition: width 0.3s ease;
     }
@@ -491,6 +489,7 @@
     const DEFAULT_DEMO = {
       title: 'Submission Checklist',
       color: '1f4d2e',
+      textColor: 'ffffff',
       sections: [
         {
           id: 'sec-1',
@@ -538,13 +537,39 @@
       return prefix + '-' + Math.random().toString(36).slice(2, 10);
     }
 
-    function normalizeColor(color) {
-      const c = String(color || '1f4d2e').replace(/^#/, '').toLowerCase();
-      return /^[0-9a-f]{6}$/.test(c) ? c : '1f4d2e';
+    function normalizeColor(color, fallback) {
+      const fb = fallback || '1f4d2e';
+      const c = String(color || fb).replace(/^#/, '').toLowerCase();
+      return /^[0-9a-f]{6}$/.test(c) ? c : fb;
     }
 
     function headerHex() {
       return '#' + state.color;
+    }
+
+    function textColorHex() {
+      return '#' + state.textColor;
+    }
+
+    function hexToRgba(hex, alpha) {
+      const h = hex.replace('#', '');
+      const r = parseInt(h.slice(0, 2), 16);
+      const g = parseInt(h.slice(2, 4), 16);
+      const b = parseInt(h.slice(4, 6), 16);
+      return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+    }
+
+    function headerStyleAttr() {
+      const fg = textColorHex();
+      return 'background:' + escapeHtml(headerHex()) + ';color:' + escapeHtml(fg);
+    }
+
+    function progressWrapStyle() {
+      return 'background:' + hexToRgba(textColorHex(), 0.25);
+    }
+
+    function progressBarStyle(pct) {
+      return 'width:' + pct + '%;background:' + textColorHex();
     }
 
     function getEffectiveBaseUrl() {
@@ -564,7 +589,8 @@
       }
 
       const title = params.get('title') || 'Untitled Checklist';
-      const color = normalizeColor(params.get('color'));
+      const color = normalizeColor(params.get('color'), '1f4d2e');
+      const textColor = normalizeColor(params.get('textcolor'), 'ffffff');
       const edit = params.get('edit') === 'true';
 
       const sections = [];
@@ -581,10 +607,10 @@
       }
 
       if (sections.length === 0) {
-        return { data: { title, color, sections: [] }, editMode: edit };
+        return { data: { title, color, textColor, sections: [] }, editMode: edit };
       }
 
-      return { data: { title, color, sections }, editMode: edit };
+      return { data: { title, color, textColor, sections }, editMode: edit };
     }
 
     function cloneData(data) {
@@ -595,6 +621,7 @@
       const params = new URLSearchParams();
       params.set('title', state.title);
       params.set('color', state.color);
+      params.set('textcolor', state.textColor);
       params.set('edit', forView ? 'false' : 'true');
 
       state.sections.forEach((section, si) => {
@@ -612,6 +639,7 @@
       const params = new URLSearchParams();
       params.set('title', state.title);
       params.set('color', state.color);
+      params.set('textcolor', state.textColor);
       params.set('edit', 'false');
 
       state.sections.forEach((section, si) => {
@@ -662,22 +690,37 @@
       return { total, checked, pct, allDone: total > 0 && checked === total };
     }
 
+    function applyHeaderStyles() {
+      const header = document.getElementById('cl-header');
+      if (!header) return;
+      const fg = textColorHex();
+      header.style.background = headerHex();
+      header.style.color = fg;
+      const wrap = header.querySelector('.cl-progress-wrap');
+      const bar = document.getElementById('progress-bar');
+      if (wrap) wrap.style.background = hexToRgba(fg, 0.25);
+      if (bar) bar.style.background = fg;
+    }
+
     function renderHeader() {
       const { total, checked, pct } = counts();
-      const bg = headerHex();
+      const style = headerStyleAttr();
 
       if (editMode) {
         return (
-          '<div class="cl-header" id="cl-header" style="background:' + escapeHtml(bg) + '">' +
+          '<div class="cl-header" id="cl-header" style="' + style + '">' +
             '<input type="text" class="cl-header-title-input" id="title-input" value="' +
               escapeHtml(state.title) + '" placeholder="Checklist title" aria-label="Checklist title">' +
             '<div class="cl-header-controls">' +
-              '<span class="cl-color-label">Header colour</span>' +
+              '<span class="cl-color-label">Background</span>' +
               '<input type="color" class="cl-color-input" id="color-input" value="' +
-                escapeHtml(bg) + '" aria-label="Header colour">' +
+                escapeHtml(headerHex()) + '" aria-label="Header background colour">' +
+              '<span class="cl-color-label">Text</span>' +
+              '<input type="color" class="cl-color-input" id="text-color-input" value="' +
+                escapeHtml(textColorHex()) + '" aria-label="Header text colour">' +
             '</div>' +
-            '<div class="cl-progress-wrap">' +
-              '<div class="cl-progress-bar" id="progress-bar" style="width:' + pct + '%"></div>' +
+            '<div class="cl-progress-wrap" style="' + progressWrapStyle() + '">' +
+              '<div class="cl-progress-bar" id="progress-bar" style="' + progressBarStyle(pct) + '"></div>' +
             '</div>' +
             '<div class="cl-progress-label" id="progress-label">' +
               checked + ' of ' + total + ' complete' +
@@ -687,10 +730,10 @@
       }
 
       return (
-        '<div class="cl-header" id="cl-header" style="background:' + escapeHtml(bg) + '">' +
+        '<div class="cl-header" id="cl-header" style="' + style + '">' +
           '<h1>' + escapeHtml(state.title) + '</h1>' +
-          '<div class="cl-progress-wrap">' +
-            '<div class="cl-progress-bar" id="progress-bar" style="width:' + pct + '%"></div>' +
+          '<div class="cl-progress-wrap" style="' + progressWrapStyle() + '">' +
+            '<div class="cl-progress-bar" id="progress-bar" style="' + progressBarStyle(pct) + '"></div>' +
           '</div>' +
           '<div class="cl-progress-label" id="progress-label">' +
             checked + ' of ' + total + ' complete' +
@@ -935,10 +978,18 @@
       const colorInput = document.getElementById('color-input');
       if (colorInput) {
         colorInput.addEventListener('input', () => {
-          state.color = normalizeColor(colorInput.value);
-          const header = document.getElementById('cl-header');
-          if (header) header.style.background = headerHex();
+          state.color = normalizeColor(colorInput.value, '1f4d2e');
+          applyHeaderStyles();
           applyAccentColors();
+          updateEmbedPanelLive();
+        });
+      }
+
+      const textColorInput = document.getElementById('text-color-input');
+      if (textColorInput) {
+        textColorInput.addEventListener('input', () => {
+          state.textColor = normalizeColor(textColorInput.value, 'ffffff');
+          applyHeaderStyles();
           updateEmbedPanelLive();
         });
       }
