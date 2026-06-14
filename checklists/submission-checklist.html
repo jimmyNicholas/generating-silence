@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submission Checklist</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --green-dark: #1f4d2e;
+      --green-medium: #3d7a52;
+      --green-tint: #e8f2ec;
+      --purple: #6b2d7a;
+      --purple-tint: #f3eaf5;
+      --pink: #c23058;
+      --pink-tint: #faeef2;
+      --dark: #1a1a1a;
+      --grey: #767676;
+      --surface: #f7f5f2;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Lato', sans-serif;
+      background: var(--surface);
+      color: var(--dark);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+    .checklist-wrap { width: 100%; max-width: 640px; }
+    .checklist-preview { font-family: 'Lato', sans-serif; background: #fff; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); overflow: hidden; }
+    .checklist-preview .cl-header { padding: 1.5rem 1.75rem; color: #fff; }
+    .checklist-preview .cl-header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; }
+    .checklist-preview .cl-progress-wrap { background: rgba(255,255,255,0.25); border-radius: 999px; height: 8px; overflow: hidden; }
+    .checklist-preview .cl-progress-bar { height: 100%; background: #fff; border-radius: 999px; transition: width 0.3s ease; }
+    .checklist-preview .cl-progress-label { font-size: 0.8rem; margin-top: 0.4rem; opacity: 0.9; }
+    .checklist-preview .cl-body { padding: 1.25rem 1.75rem 1.75rem; }
+    .checklist-preview .cl-section { margin-bottom: 1.5rem; }
+    .checklist-preview .cl-section:last-child { margin-bottom: 0; }
+    .checklist-preview .cl-section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--grey); font-weight: 700; margin-bottom: 0.65rem; padding-bottom: 0.35rem; border-bottom: 2px solid var(--green-tint); }
+    .checklist-preview .cl-item { display: flex; align-items: flex-start; gap: 0.65rem; padding: 0.5rem 0; cursor: pointer; }
+    .checklist-preview .cl-item input[type="checkbox"] { margin-top: 0.15rem; width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; }
+    .checklist-preview .cl-item label { font-size: 0.95rem; line-height: 1.45; cursor: pointer; flex: 1; }
+    .checklist-preview .cl-item.checked label { text-decoration: line-through; color: var(--grey); }
+    .checklist-preview .cl-complete { margin-top: 1.25rem; padding: 1rem 1.25rem; background: var(--green-tint); border-radius: 6px; text-align: center; font-weight: 700; color: var(--green-dark); display: none; }
+    .checklist-preview .cl-complete.visible { display: block; }
+  </style>
+</head>
+<body>
+  <div class="checklist-wrap" id="root"></div>
+  <script>
+    const DATA = {"title":"Submission Checklist","headerBg":"#1f4d2e","accentColor":"#6b2d7a","completionMessage":"All done — great work!","sections":[{"id":"id-sub1","label":"Before you submit","items":[{"id":"id-i1","text":"Read the brief and marking criteria","checked":false},{"id":"id-i2","text":"Check word count and formatting requirements","checked":false},{"id":"id-i3","text":"Run spell check and proofread","checked":false}]},{"id":"id-sub2","label":"Files &amp; upload","items":[{"id":"id-i4","text":"Export as PDF (unless otherwise specified)","checked":false},{"id":"id-i5","text":"Name your file correctly (surname-firstname-assignment.pdf)","checked":false},{"id":"id-i6","text":"Upload to the correct Brightspace folder","checked":false}]},{"id":"id-sub3","label":"Final check","items":[{"id":"id-i7","text":"Confirm submission timestamp before the deadline","checked":false},{"id":"id-i8","text":"Download your submission to verify it opens correctly","checked":false}]}]};
+    const STORAGE_KEY = 'checklist-submission-checklist';
+
+    function escapeHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function render() {
+      const total = DATA.sections.reduce((n,s) => n + s.items.length, 0);
+      const checked = DATA.sections.reduce((n,s) => n + s.items.filter(i => i.checked).length, 0);
+      const pct = total === 0 ? 0 : Math.round((checked / total) * 100);
+      const allDone = total > 0 && checked === total;
+
+      let sectionsHTML = '';
+      DATA.sections.forEach(section => {
+        let itemsHTML = '';
+        section.items.forEach(item => {
+          const c = item.checked ? ' checked' : '';
+          const cc = item.checked ? ' checked' : '';
+          itemsHTML += '<div class="cl-item'+cc+'" data-item-id="'+item.id+'"><input type="checkbox" id="item-'+item.id+'"'+c+'><label for="item-'+item.id+'">'+escapeHtml(item.text || 'Untitled item')+'</label></div>';
+        });
+        sectionsHTML += '<div class="cl-section"><div class="cl-section-label">'+escapeHtml(section.label || 'Untitled section')+'</div>'+itemsHTML+'</div>';
+      });
+
+      document.getElementById('root').innerHTML =
+        '<div class="checklist-preview">' +
+          '<div class="cl-header" style="background:'+DATA.headerBg+'">' +
+            '<h1>'+escapeHtml(DATA.title || 'Untitled Checklist')+'</h1>' +
+            '<div class="cl-progress-wrap"><div class="cl-progress-bar" style="width:'+pct+'%"></div></div>' +
+            '<div class="cl-progress-label">'+checked+' of '+total+' complete ('+pct+'%)</div>' +
+          '</div>' +
+          '<div class="cl-body">' + sectionsHTML +
+            '<div class="cl-complete'+(allDone ? ' visible' : '')+'">'+escapeHtml(DATA.completionMessage)+'</div>' +
+          '</div>' +
+        '</div>';
+
+      document.querySelectorAll('.cl-item input[type="checkbox"]').forEach(cb => {
+        cb.style.accentColor = DATA.accentColor;
+        cb.addEventListener('change', () => {
+          const itemId = cb.closest('.cl-item').dataset.itemId;
+          for (const sec of DATA.sections) {
+            const item = sec.items.find(i => i.id === itemId);
+            if (item) { item.checked = cb.checked; break; }
+          }
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA.sections.map(s => s.items.map(i => ({ id: i.id, checked: i.checked })))));
+          render();
+        });
+      });
+    }
+
+    (function loadProgress() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (saved) {
+          saved.forEach((secItems, si) => {
+            secItems.forEach(savedItem => {
+              const item = DATA.sections[si]?.items.find(i => i.id === savedItem.id);
+              if (item) item.checked = savedItem.checked;
+            });
+          });
+        }
+      } catch(e) {}
+      render();
+    })();
+  </script>
+</body>
+</html>

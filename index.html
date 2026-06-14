@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checklist Builder — Generating Silence Tools</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --green-dark: #1f4d2e;
+      --green-medium: #3d7a52;
+      --green-tint: #e8f2ec;
+      --purple: #6b2d7a;
+      --purple-tint: #f3eaf5;
+      --pink: #c23058;
+      --pink-tint: #faeef2;
+      --dark: #1a1a1a;
+      --grey: #767676;
+      --surface: #f7f5f2;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Lato', sans-serif;
+      background: var(--surface);
+      color: var(--dark);
+      min-height: 100vh;
+    }
+
+    .app-header {
+      background: var(--green-dark);
+      color: #fff;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .app-header h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .app-header p {
+      font-size: 0.85rem;
+      opacity: 0.85;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: calc(100vh - 60px);
+    }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      padding: 1.5rem;
+      overflow-y: auto;
+    }
+
+    .panel-builder {
+      background: #fff;
+      border-right: 1px solid #ddd;
+    }
+
+    .panel-preview {
+      background: var(--surface);
+    }
+
+    .panel h2 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--grey);
+      margin-bottom: 1.25rem;
+    }
+
+    .field {
+      margin-bottom: 1rem;
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+      color: var(--dark);
+    }
+
+    .field input[type="text"],
+    .field input[type="color"] {
+      font-family: 'Lato', sans-serif;
+    }
+
+    .field input[type="text"] {
+      width: 100%;
+      padding: 0.55rem 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.95rem;
+    }
+
+    .field input[type="text"]:focus {
+      outline: 2px solid var(--green-medium);
+      border-color: var(--green-medium);
+    }
+
+    .color-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .color-row input[type="color"] {
+      width: 48px;
+      height: 36px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+      padding: 2px;
+    }
+
+    .color-row span {
+      font-size: 0.85rem;
+      color: var(--grey);
+      font-family: monospace;
+    }
+
+    .sections-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .section-card {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      background: var(--surface);
+      overflow: hidden;
+    }
+
+    .section-card.drag-over {
+      outline: 2px dashed var(--green-medium);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.65rem 0.75rem;
+      background: var(--green-tint);
+      border-bottom: 1px solid #ddd;
+    }
+
+    .drag-handle {
+      cursor: grab;
+      color: var(--grey);
+      font-size: 1.1rem;
+      user-select: none;
+      flex-shrink: 0;
+      padding: 0 0.15rem;
+    }
+
+    .drag-handle:active { cursor: grabbing; }
+
+    .section-header input[type="text"] {
+      flex: 1;
+      border: none;
+      background: transparent;
+      font-family: 'Lato', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 700;
+      padding: 0.25rem;
+    }
+
+    .section-header input[type="text"]:focus {
+      outline: 1px solid var(--green-medium);
+      border-radius: 3px;
+      background: #fff;
+    }
+
+    .btn-icon {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--grey);
+      font-size: 1.1rem;
+      padding: 0.2rem 0.4rem;
+      border-radius: 3px;
+      line-height: 1;
+    }
+
+    .btn-icon:hover {
+      background: rgba(0,0,0,0.08);
+      color: var(--pink);
+    }
+
+    .items-list {
+      padding: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .item-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0.5rem;
+      background: #fff;
+      border-radius: 4px;
+      border: 1px solid #eee;
+    }
+
+    .item-row.drag-over {
+      outline: 2px dashed var(--green-medium);
+    }
+
+    .item-row input[type="text"] {
+      flex: 1;
+      border: none;
+      font-family: 'Lato', sans-serif;
+      font-size: 0.9rem;
+      padding: 0.25rem;
+      background: transparent;
+    }
+
+    .item-row input[type="text"]:focus {
+      outline: 1px solid var(--green-medium);
+      border-radius: 3px;
+    }
+
+    .btn {
+      font-family: 'Lato', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 0.55rem 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--green-dark);
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: var(--green-medium); }
+
+    .btn-secondary {
+      background: var(--purple);
+      color: #fff;
+    }
+
+    .btn-secondary:hover { background: #5a2570; }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--green-dark);
+      border: 1px solid var(--green-dark);
+    }
+
+    .btn-outline:hover { background: var(--green-tint); }
+
+    .btn-sm {
+      font-size: 0.8rem;
+      padding: 0.35rem 0.65rem;
+    }
+
+    .actions-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #ddd;
+    }
+
+    .export-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: var(--dark);
+      color: #fff;
+      padding: 0.75rem 1.25rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.25s, transform 0.25s;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Preview styles */
+    .preview-frame {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .checklist-preview {
+      font-family: 'Lato', sans-serif;
+    }
+
+    .checklist-preview .cl-header {
+      padding: 1.5rem 1.75rem;
+      color: #fff;
+    }
+
+    .checklist-preview .cl-header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+
+    .checklist-preview .cl-progress-wrap {
+      background: rgba(255,255,255,0.25);
+      border-radius: 999px;
+      height: 8px;
+      overflow: hidden;
+    }
+
+    .checklist-preview .cl-progress-bar {
+      height: 100%;
+      background: #fff;
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+
+    .checklist-preview .cl-progress-label {
+      font-size: 0.8rem;
+      margin-top: 0.4rem;
+      opacity: 0.9;
+    }
+
+    .checklist-preview .cl-body {
+      padding: 1.25rem 1.75rem 1.75rem;
+    }
+
+    .checklist-preview .cl-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .checklist-preview .cl-section:last-child { margin-bottom: 0; }
+
+    .checklist-preview .cl-section-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--grey);
+      font-weight: 700;
+      margin-bottom: 0.65rem;
+      padding-bottom: 0.35rem;
+      border-bottom: 2px solid var(--green-tint);
+    }
+
+    .checklist-preview .cl-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.65rem;
+      padding: 0.5rem 0;
+      cursor: pointer;
+    }
+
+    .checklist-preview .cl-item input[type="checkbox"] {
+      margin-top: 0.15rem;
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      cursor: pointer;
+      accent-color: var(--green-dark);
+    }
+
+    .checklist-preview .cl-item label {
+      font-size: 0.95rem;
+      line-height: 1.45;
+      cursor: pointer;
+      flex: 1;
+    }
+
+    .checklist-preview .cl-item.checked label {
+      text-decoration: line-through;
+      color: var(--grey);
+    }
+
+    .checklist-preview .cl-complete {
+      margin-top: 1.25rem;
+      padding: 1rem 1.25rem;
+      background: var(--green-tint);
+      border-radius: 6px;
+      text-align: center;
+      font-weight: 700;
+      color: var(--green-dark);
+      display: none;
+    }
+
+    .checklist-preview .cl-complete.visible { display: block; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1>Checklist Builder</h1>
+      <p>Generating Silence Tools</p>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="panel panel-builder">
+      <h2>Builder</h2>
+
+      <div class="field">
+        <label for="title-input">Checklist title</label>
+        <input type="text" id="title-input" placeholder="My Checklist">
+      </div>
+
+      <div class="field">
+        <label for="header-color">Header background colour</label>
+        <div class="color-row">
+          <input type="color" id="header-color" value="#1f4d2e">
+          <span id="header-color-hex">#1f4d2e</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="accent-color">Checkbox accent colour</label>
+        <div class="color-row">
+          <input type="color" id="accent-color" value="#1f4d2e">
+          <span id="accent-color-hex">#1f4d2e</span>
+        </div>
+      </div>
+
+      <div class="sections-list" id="sections-list"></div>
+
+      <button type="button" class="btn btn-outline btn-sm" id="add-section-btn">+ Add section</button>
+
+      <div class="export-row">
+        <button type="button" class="btn btn-primary" id="save-html-btn">Save as HTML</button>
+        <button type="button" class="btn btn-secondary" id="copy-embed-btn">Copy embed code</button>
+      </div>
+    </div>
+
+    <div class="panel panel-preview">
+      <h2>Preview</h2>
+      <div class="preview-frame">
+        <div id="preview-root"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // Update this after deploying to GitHub Pages
+    const GITHUB_PAGES_BASE_URL = 'https://YOUR_USERNAME.github.io/generating-silence-tools';
+
+    const DEFAULTS = {
+      title: 'My Checklist',
+      headerBg: '#1f4d2e',
+      accentColor: '#1f4d2e',
+      completionMessage: 'All done — great work!',
+      sections: [
+        {
+          id: uid(),
+          label: 'Section 1',
+          items: [{ id: uid(), text: 'First item', checked: false }]
+        }
+      ]
+    };
+
+    let state = structuredClone(DEFAULTS);
+    let dragInfo = null;
+
+    function uid() {
+      return 'id-' + Math.random().toString(36).slice(2, 10);
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    function totalItems() {
+      return state.sections.reduce((n, s) => n + s.items.length, 0);
+    }
+
+    function checkedCount() {
+      return state.sections.reduce((n, s) => n + s.items.filter(i => i.checked).length, 0);
+    }
+
+    function syncInputsFromState() {
+      document.getElementById('title-input').value = state.title;
+      document.getElementById('header-color').value = state.headerBg;
+      document.getElementById('accent-color').value = state.accentColor;
+      document.getElementById('header-color-hex').textContent = state.headerBg;
+      document.getElementById('accent-color-hex').textContent = state.accentColor;
+    }
+
+    function renderBuilder() {
+      const list = document.getElementById('sections-list');
+      list.innerHTML = '';
+
+      state.sections.forEach((section, sIdx) => {
+        const card = document.createElement('div');
+        card.className = 'section-card';
+        card.dataset.sectionId = section.id;
+        card.draggable = true;
+
+        card.addEventListener('dragstart', e => {
+          dragInfo = { type: 'section', sectionId: section.id };
+          e.dataTransfer.effectAllowed = 'move';
+        });
+        card.addEventListener('dragend', () => {
+          dragInfo = null;
+          document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        });
+        card.addEventListener('dragover', e => {
+          if (dragInfo?.type === 'section') {
+            e.preventDefault();
+            card.classList.add('drag-over');
+          }
+        });
+        card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+        card.addEventListener('drop', e => {
+          e.preventDefault();
+          card.classList.remove('drag-over');
+          if (dragInfo?.type !== 'section' || dragInfo.sectionId === section.id) return;
+          const fromIdx = state.sections.findIndex(s => s.id === dragInfo.sectionId);
+          const toIdx = sIdx;
+          const [moved] = state.sections.splice(fromIdx, 1);
+          state.sections.splice(toIdx, 0, moved);
+          renderAll();
+        });
+
+        const header = document.createElement('div');
+        header.className = 'section-header';
+
+        const handle = document.createElement('span');
+        handle.className = 'drag-handle';
+        handle.textContent = '⠿';
+        handle.title = 'Drag to reorder section';
+
+        const labelInput = document.createElement('input');
+        labelInput.type = 'text';
+        labelInput.value = section.label;
+        labelInput.placeholder = 'Section label';
+        labelInput.addEventListener('input', () => {
+          section.label = labelInput.value;
+          renderPreview();
+        });
+
+        const delSection = document.createElement('button');
+        delSection.type = 'button';
+        delSection.className = 'btn-icon';
+        delSection.title = 'Delete section';
+        delSection.textContent = '✕';
+        delSection.addEventListener('click', () => {
+          if (state.sections.length <= 1) {
+            showToast('You need at least one section');
+            return;
+          }
+          state.sections = state.sections.filter(s => s.id !== section.id);
+          renderAll();
+        });
+
+        header.append(handle, labelInput, delSection);
+
+        const itemsList = document.createElement('div');
+        itemsList.className = 'items-list';
+
+        section.items.forEach((item, iIdx) => {
+          const row = document.createElement('div');
+          row.className = 'item-row';
+          row.dataset.itemId = item.id;
+          row.draggable = true;
+
+          row.addEventListener('dragstart', e => {
+            e.stopPropagation();
+            dragInfo = { type: 'item', sectionId: section.id, itemId: item.id };
+            e.dataTransfer.effectAllowed = 'move';
+          });
+          row.addEventListener('dragend', e => {
+            e.stopPropagation();
+            dragInfo = null;
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+          });
+          row.addEventListener('dragover', e => {
+            if (dragInfo?.type === 'item' && dragInfo.sectionId === section.id) {
+              e.preventDefault();
+              e.stopPropagation();
+              row.classList.add('drag-over');
+            }
+          });
+          row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+          row.addEventListener('drop', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            row.classList.remove('drag-over');
+            if (dragInfo?.type !== 'item' || dragInfo.sectionId !== section.id) return;
+            if (dragInfo.itemId === item.id) return;
+            const sec = state.sections.find(s => s.id === section.id);
+            const fromIdx = sec.items.findIndex(i => i.id === dragInfo.itemId);
+            const toIdx = iIdx;
+            const [moved] = sec.items.splice(fromIdx, 1);
+            sec.items.splice(toIdx, 0, moved);
+            renderAll();
+          });
+
+          const itemHandle = document.createElement('span');
+          itemHandle.className = 'drag-handle';
+          itemHandle.textContent = '⠿';
+          itemHandle.title = 'Drag to reorder item';
+
+          const textInput = document.createElement('input');
+          textInput.type = 'text';
+          textInput.value = item.text;
+          textInput.placeholder = 'Checklist item';
+          textInput.addEventListener('input', () => {
+            item.text = textInput.value;
+            renderPreview();
+          });
+
+          const delItem = document.createElement('button');
+          delItem.type = 'button';
+          delItem.className = 'btn-icon';
+          delItem.title = 'Delete item';
+          delItem.textContent = '✕';
+          delItem.addEventListener('click', () => {
+            if (section.items.length <= 1) {
+              showToast('Each section needs at least one item');
+              return;
+            }
+            section.items = section.items.filter(i => i.id !== item.id);
+            renderAll();
+          });
+
+          row.append(itemHandle, textInput, delItem);
+          itemsList.appendChild(row);
+        });
+
+        const addItemBtn = document.createElement('button');
+        addItemBtn.type = 'button';
+        addItemBtn.className = 'btn btn-outline btn-sm';
+        addItemBtn.textContent = '+ Add item';
+        addItemBtn.style.margin = '0.5rem';
+        addItemBtn.addEventListener('click', () => {
+          section.items.push({ id: uid(), text: '', checked: false });
+          renderAll();
+          const inputs = itemsList.querySelectorAll('input[type="text"]');
+          inputs[inputs.length - 1]?.focus();
+        });
+
+        card.append(header, itemsList, addItemBtn);
+        list.appendChild(card);
+      });
+    }
+
+    function renderChecklistHTML(data, interactive) {
+      const total = data.sections.reduce((n, s) => n + s.items.length, 0);
+      const checked = data.sections.reduce((n, s) => n + s.items.filter(i => i.checked).length, 0);
+      const pct = total === 0 ? 0 : Math.round((checked / total) * 100);
+      const allDone = total > 0 && checked === total;
+
+      let sectionsHTML = '';
+      data.sections.forEach(section => {
+        let itemsHTML = '';
+        section.items.forEach(item => {
+          const checkedAttr = item.checked ? ' checked' : '';
+          const checkedClass = item.checked ? ' checked' : '';
+          if (interactive) {
+            itemsHTML += `
+              <div class="cl-item${checkedClass}" data-item-id="${item.id}">
+                <input type="checkbox" id="item-${item.id}"${checkedAttr}>
+                <label for="item-${item.id}">${escapeHtml(item.text || 'Untitled item')}</label>
+              </div>`;
+          } else {
+            itemsHTML += `
+              <div class="cl-item${checkedClass}">
+                <input type="checkbox"${checkedAttr} disabled>
+                <label>${escapeHtml(item.text || 'Untitled item')}</label>
+              </div>`;
+          }
+        });
+        sectionsHTML += `
+          <div class="cl-section">
+            <div class="cl-section-label">${escapeHtml(section.label || 'Untitled section')}</div>
+            ${itemsHTML}
+          </div>`;
+      });
+
+      return `
+        <div class="checklist-preview" style="--accent: ${data.accentColor}">
+          <div class="cl-header" style="background: ${data.headerBg}">
+            <h1>${escapeHtml(data.title || 'Untitled Checklist')}</h1>
+            <div class="cl-progress-wrap">
+              <div class="cl-progress-bar" style="width: ${pct}%"></div>
+            </div>
+            <div class="cl-progress-label">${checked} of ${total} complete (${pct}%)</div>
+          </div>
+          <div class="cl-body">
+            ${sectionsHTML}
+            <div class="cl-complete${allDone ? ' visible' : ''}">${escapeHtml(data.completionMessage)}</div>
+          </div>
+        </div>`;
+    }
+
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function renderPreview() {
+      const root = document.getElementById('preview-root');
+      root.innerHTML = renderChecklistHTML(state, true);
+
+      root.querySelectorAll('.cl-item input[type="checkbox"]').forEach(cb => {
+        cb.style.accentColor = state.accentColor;
+        cb.addEventListener('change', () => {
+          const itemId = cb.closest('.cl-item').dataset.itemId;
+          for (const sec of state.sections) {
+            const item = sec.items.find(i => i.id === itemId);
+            if (item) {
+              item.checked = cb.checked;
+              break;
+            }
+          }
+          renderPreview();
+        });
+      });
+    }
+
+    function renderAll() {
+      renderBuilder();
+      renderPreview();
+    }
+
+    function buildStandaloneHTML(data, filename) {
+      const dataJson = JSON.stringify(data);
+      return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(data.title || 'Checklist')}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --green-dark: #1f4d2e;
+      --green-medium: #3d7a52;
+      --green-tint: #e8f2ec;
+      --purple: #6b2d7a;
+      --purple-tint: #f3eaf5;
+      --pink: #c23058;
+      --pink-tint: #faeef2;
+      --dark: #1a1a1a;
+      --grey: #767676;
+      --surface: #f7f5f2;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Lato', sans-serif;
+      background: var(--surface);
+      color: var(--dark);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+    .checklist-wrap { width: 100%; max-width: 640px; }
+    .checklist-preview { font-family: 'Lato', sans-serif; background: #fff; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); overflow: hidden; }
+    .checklist-preview .cl-header { padding: 1.5rem 1.75rem; color: #fff; }
+    .checklist-preview .cl-header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; }
+    .checklist-preview .cl-progress-wrap { background: rgba(255,255,255,0.25); border-radius: 999px; height: 8px; overflow: hidden; }
+    .checklist-preview .cl-progress-bar { height: 100%; background: #fff; border-radius: 999px; transition: width 0.3s ease; }
+    .checklist-preview .cl-progress-label { font-size: 0.8rem; margin-top: 0.4rem; opacity: 0.9; }
+    .checklist-preview .cl-body { padding: 1.25rem 1.75rem 1.75rem; }
+    .checklist-preview .cl-section { margin-bottom: 1.5rem; }
+    .checklist-preview .cl-section:last-child { margin-bottom: 0; }
+    .checklist-preview .cl-section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--grey); font-weight: 700; margin-bottom: 0.65rem; padding-bottom: 0.35rem; border-bottom: 2px solid var(--green-tint); }
+    .checklist-preview .cl-item { display: flex; align-items: flex-start; gap: 0.65rem; padding: 0.5rem 0; cursor: pointer; }
+    .checklist-preview .cl-item input[type="checkbox"] { margin-top: 0.15rem; width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; }
+    .checklist-preview .cl-item label { font-size: 0.95rem; line-height: 1.45; cursor: pointer; flex: 1; }
+    .checklist-preview .cl-item.checked label { text-decoration: line-through; color: var(--grey); }
+    .checklist-preview .cl-complete { margin-top: 1.25rem; padding: 1rem 1.25rem; background: var(--green-tint); border-radius: 6px; text-align: center; font-weight: 700; color: var(--green-dark); display: none; }
+    .checklist-preview .cl-complete.visible { display: block; }
+  </style>
+</head>
+<body>
+  <div class="checklist-wrap" id="root"></div>
+  <script>
+    const DATA = ${dataJson};
+    const STORAGE_KEY = 'checklist-' + ${JSON.stringify(filename.replace(/\\.html$/i, ''))};
+
+    function escapeHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function render() {
+      const total = DATA.sections.reduce((n,s) => n + s.items.length, 0);
+      const checked = DATA.sections.reduce((n,s) => n + s.items.filter(i => i.checked).length, 0);
+      const pct = total === 0 ? 0 : Math.round((checked / total) * 100);
+      const allDone = total > 0 && checked === total;
+
+      let sectionsHTML = '';
+      DATA.sections.forEach(section => {
+        let itemsHTML = '';
+        section.items.forEach(item => {
+          const c = item.checked ? ' checked' : '';
+          const cc = item.checked ? ' checked' : '';
+          itemsHTML += '<div class="cl-item'+cc+'" data-item-id="'+item.id+'"><input type="checkbox" id="item-'+item.id+'"'+c+'><label for="item-'+item.id+'">'+escapeHtml(item.text || 'Untitled item')+'</label></div>';
+        });
+        sectionsHTML += '<div class="cl-section"><div class="cl-section-label">'+escapeHtml(section.label || 'Untitled section')+'</div>'+itemsHTML+'</div>';
+      });
+
+      document.getElementById('root').innerHTML =
+        '<div class="checklist-preview">' +
+          '<div class="cl-header" style="background:'+DATA.headerBg+'">' +
+            '<h1>'+escapeHtml(DATA.title || 'Untitled Checklist')+'</h1>' +
+            '<div class="cl-progress-wrap"><div class="cl-progress-bar" style="width:'+pct+'%"></div></div>' +
+            '<div class="cl-progress-label">'+checked+' of '+total+' complete ('+pct+'%)</div>' +
+          '</div>' +
+          '<div class="cl-body">' + sectionsHTML +
+            '<div class="cl-complete'+(allDone ? ' visible' : '')+'">'+escapeHtml(DATA.completionMessage)+'</div>' +
+          '</div>' +
+        '</div>';
+
+      document.querySelectorAll('.cl-item input[type="checkbox"]').forEach(cb => {
+        cb.style.accentColor = DATA.accentColor;
+        cb.addEventListener('change', () => {
+          const itemId = cb.closest('.cl-item').dataset.itemId;
+          for (const sec of DATA.sections) {
+            const item = sec.items.find(i => i.id === itemId);
+            if (item) { item.checked = cb.checked; break; }
+          }
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA.sections.map(s => s.items.map(i => ({ id: i.id, checked: i.checked })))));
+          render();
+        });
+      });
+    }
+
+    (function loadProgress() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (saved) {
+          saved.forEach((secItems, si) => {
+            secItems.forEach(savedItem => {
+              const item = DATA.sections[si]?.items.find(i => i.id === savedItem.id);
+              if (item) item.checked = savedItem.checked;
+            });
+          });
+        }
+      } catch(e) {}
+      render();
+    })();
+  <\/script>
+</body>
+</html>`;
+    }
+
+    function slugify(str) {
+      return (str || 'checklist')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') || 'checklist';
+    }
+
+    function downloadHTML() {
+      const filename = slugify(state.title) + '.html';
+      const html = buildStandaloneHTML(state, filename);
+      const blob = new Blob([html], { type: 'text/html' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast('Downloaded ' + filename);
+    }
+
+    function copyEmbedCode() {
+      const slug = slugify(state.title);
+      const url = GITHUB_PAGES_BASE_URL.replace(/\/$/, '') + '/checklists/' + slug + '.html';
+      const snippet = `<iframe src="${url}" width="100%" height="600" frameborder="0" style="border:none;max-width:640px;" title="${state.title.replace(/"/g, '&quot;')}"></iframe>`;
+      navigator.clipboard.writeText(snippet).then(() => {
+        showToast('Embed code copied to clipboard');
+      }).catch(() => {
+        showToast('Could not copy — check browser permissions');
+      });
+    }
+
+    document.getElementById('title-input').addEventListener('input', e => {
+      state.title = e.target.value;
+      renderPreview();
+    });
+
+    document.getElementById('header-color').addEventListener('input', e => {
+      state.headerBg = e.target.value;
+      document.getElementById('header-color-hex').textContent = e.target.value;
+      renderPreview();
+    });
+
+    document.getElementById('accent-color').addEventListener('input', e => {
+      state.accentColor = e.target.value;
+      document.getElementById('accent-color-hex').textContent = e.target.value;
+      renderPreview();
+    });
+
+    document.getElementById('add-section-btn').addEventListener('click', () => {
+      state.sections.push({
+        id: uid(),
+        label: 'New section',
+        items: [{ id: uid(), text: '', checked: false }]
+      });
+      renderAll();
+    });
+
+    document.getElementById('save-html-btn').addEventListener('click', downloadHTML);
+    document.getElementById('copy-embed-btn').addEventListener('click', copyEmbedCode);
+
+    syncInputsFromState();
+    renderAll();
+  </script>
+</body>
+</html>
